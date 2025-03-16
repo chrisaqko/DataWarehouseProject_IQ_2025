@@ -4,14 +4,11 @@ use master;
 create database dump_dw_project
 GO
 
-create database project_normalization
-go
 
 use dump_dw_project
 go
 
-use project_normalization
-go
+
 
 -- Situación socioeconómica por edad
 CREATE TABLE situacion_socioeconomica_edad (
@@ -278,3 +275,11 @@ CREATE TABLE estadisticas_policiales (
     Canton VARCHAR(255),
     Distrito VARCHAR(255)
 );
+
+
+create database project_normalization
+go
+
+use project_normalization
+go
+
