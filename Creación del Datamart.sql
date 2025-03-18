@@ -1,3 +1,6 @@
+USE MASTER
+GO
+
 CREATE DATABASE dw_datamart;
 GO
 
@@ -45,7 +48,7 @@ CREATE TABLE hechos_delitos (
     edad_id INT,
     delito_id INT,
     numero_personas INT,
-    monto INT,  -- Solo para los casos de inversión social o beneficios
+    monto INT,  -- Solo para los casos de inversiï¿½n social o beneficios
     FOREIGN KEY (ubicacion_id) REFERENCES dim_ubicacion(ubicacion_id),
     FOREIGN KEY (tiempo_id) REFERENCES dim_tiempo(tiempo_id),
     FOREIGN KEY (sexo_id) REFERENCES dim_sexo(sexo_id),
