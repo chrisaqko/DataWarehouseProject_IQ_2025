@@ -1,11 +1,11 @@
 BEGIN TRANSACTION;
 
 -- Actualizar Provincia
-UPDATE [dump_dw_project].[dbo].[EstadisticasPoliciales2024] 
+UPDATE [dump_dw_project].[dbo].[Estadisticas Policiales 2024] 
 SET Provincia = 'DESCONOCIDO' 
 WHERE Provincia IS NULL;
 
--- Procedimiento para insertar provincias 鷑icas
+-- Procedimiento para insertar provincias 锟絥icas
 IF OBJECT_ID('InsertarProvinciasUnicas', 'P') IS NOT NULL
     DROP PROCEDURE InsertarProvinciasUnicas;
 GO
@@ -15,22 +15,24 @@ BEGIN
     SET NOCOUNT ON;
     INSERT INTO [dw_project_normalized].[dbo].[dimension_provincia] (nombre_provincia)
     SELECT DISTINCT Provincia
-    FROM [dump_dw_project].[dbo].[EstadisticasPoliciales2024] AS ep
+    FROM [dump_dw_project].[dbo].[Estadisticas Policiales 2024] AS ep
     WHERE NOT EXISTS (
         SELECT 1 
         FROM [dw_project_normalized].[dbo].[dimension_provincia] AS dp
         WHERE dp.nombre_provincia = ep.Provincia
     );
-END;
+END
 GO
 EXEC InsertarProvinciasUnicas;
 
--- Actualizar Cant髇
-UPDATE [dump_dw_project].[dbo].[EstadisticasPoliciales2024] 
-SET Cant髇 = 'DESCONOCIDO' 
-WHERE Cant髇 IS NULL;
+select * from dw_project_normalized.dbo.dimension_provincia
+GO
+-- Actualizar Cant锟絥
+UPDATE [dump_dw_project].[dbo].[Estadisticas Policiales 2024] 
+SET Cant贸n = 'DESCONOCIDO' 
+WHERE Cant贸n IS NULL;
 
--- Procedimiento para insertar cantones 鷑icos
+-- Procedimiento para insertar cantones 锟絥icos
 IF OBJECT_ID('InsertarCantonesUnicos', 'P') IS NOT NULL
     DROP PROCEDURE InsertarCantonesUnicos;
 GO
@@ -39,27 +41,31 @@ AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO [dw_project_normalized].[dbo].[dimension_canton] (nombre_canton, id_provincia)
-    SELECT DISTINCT ep.Cant髇, dp.id_provincia
-    FROM [dump_dw_project].[dbo].[EstadisticasPoliciales2024] AS ep
+    SELECT DISTINCT ep.Cant贸n, dp.id_provincia
+    FROM [dump_dw_project].[dbo].[Estadisticas Policiales 2024] AS ep
     INNER JOIN [dw_project_normalized].[dbo].[dimension_provincia] AS dp
         ON ep.Provincia = dp.nombre_provincia
-    WHERE ep.Cant髇 IS NOT NULL 
-          AND LTRIM(RTRIM(ep.Cant髇)) <> ''
-          AND LTRIM(RTRIM(ep.Cant髇)) <> 'DESCONOCIDO'
+    WHERE ep.Cant贸n IS NOT NULL 
+          AND LTRIM(RTRIM(ep.Cant贸n)) <> ''
+          AND LTRIM(RTRIM(ep.Cant贸n)) <> 'DESCONOCIDO'
           AND NOT EXISTS (
               SELECT 1 
               FROM [dw_project_normalized].[dbo].[dimension_canton] AS dc
-              WHERE dc.nombre_canton = ep.Cant髇
+              WHERE dc.nombre_canton = ep.Cant贸n
                 AND dc.id_provincia = dp.id_provincia
           );
-END;
+END
 GO
-EXEC InsertarCantonesUnicos;
+EXEC InsertarCantonesUnicos
+GO
 
+select * from dw_project_normalized.dbo.dimension_canton
+GO
 -- Actualizar Distrito
-UPDATE [dump_dw_project].[dbo].[EstadisticasPoliciales2024] 
+UPDATE [dump_dw_project].[dbo].[Estadisticas Policiales 2024] 
 SET Distrito = 'DESCONOCIDO' 
-WHERE Distrito IS NULL;
+WHERE Distrito IS NULL
+GO
 
 -- Procedimiento para insertar distritos con cantones
 IF OBJECT_ID('InsertarDistritosConCantones', 'P') IS NOT NULL
@@ -74,12 +80,12 @@ BEGIN
     DECLARE @Distrito NVARCHAR(255);
     DECLARE @Canton NVARCHAR(255);
 
-    SELECT DISTINCT E.[Distrito], E.[Cant髇]
+    SELECT DISTINCT E.[Distrito], E.[Cant贸n]
     INTO #DistritosUnicos
-    FROM [dump_dw_project].[dbo].[EstadisticasPoliciales2024] E;
+    FROM [dump_dw_project].[dbo].[Estadisticas Policiales 2024] E;
 
     DECLARE distrito_cursor CURSOR FOR
-    SELECT [Distrito], [Cant髇] FROM #DistritosUnicos;
+    SELECT [Distrito], [Cant贸n] FROM #DistritosUnicos;
 
     OPEN distrito_cursor;
 
@@ -104,10 +110,70 @@ BEGIN
     DEALLOCATE distrito_cursor;
 
     DROP TABLE #DistritosUnicos;
-END;
+END
 GO
-EXEC InsertarDistritosConCantones;
+EXEC InsertarDistritosConCantones
+GO
+select * from dw_project_normalized.dbo.dimension_distrito
+GO
 
+--- //////////// correcci贸n insercion de distritos
+IF OBJECT_ID('InsertarDistritosConCantones', 'P') IS NOT NULL
+    DROP PROCEDURE InsertarDistritosConCantones;
+GO
+
+CREATE PROCEDURE InsertarDistritosConCantones
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @id_canton INT;
+    DECLARE @Distrito NVARCHAR(255);
+    DECLARE @Canton NVARCHAR(255);
+
+    -- Extrae distritos 煤nicos
+    SELECT DISTINCT E.[Distrito], E.[Cant贸n]
+    INTO #DistritosUnicos
+    FROM [dump_dw_project].[dbo].[Estadisticas Policiales 2024] E;
+
+    DECLARE distrito_cursor CURSOR FOR
+    SELECT [Distrito], [Cant贸n] FROM #DistritosUnicos;
+
+    OPEN distrito_cursor;
+
+    FETCH NEXT FROM distrito_cursor INTO @Distrito, @Canton;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        -- Obtiene el ID del cant贸n
+        SELECT @id_canton = [id_canton]
+        FROM [dw_project_normalized].[dbo].[dimension_canton]
+        WHERE [nombre_canton] = @Canton;
+
+        -- Si el cant贸n existe y el distrito no est谩 registrado, lo inserta
+        IF @id_canton IS NOT NULL 
+        AND NOT EXISTS (SELECT 1 FROM [dw_project_normalized].[dbo].[dimension_distrito] 
+                        WHERE [nombre_distrito] = @Distrito AND [id_canton] = @id_canton)
+        BEGIN
+            INSERT INTO [dw_project_normalized].[dbo].[dimension_distrito] ([nombre_distrito], [id_canton])
+            VALUES (@Distrito, @id_canton);
+        END
+
+        FETCH NEXT FROM distrito_cursor INTO @Distrito, @Canton;
+    END
+
+    CLOSE distrito_cursor;
+    DEALLOCATE distrito_cursor;
+
+    DROP TABLE #DistritosUnicos;
+END
+GO
+--- //////////// fin
+select * from dw_project_normalized.dbo.dimension_distrito
+GO
+
+drop procedure Populate_Dimension_Edad
+GO
 CREATE PROCEDURE Populate_Dimension_Edad
 AS
 BEGIN
@@ -115,11 +181,17 @@ BEGIN
 
     INSERT INTO [dw_project_normalized].[dbo].[dimension_edad] (edad)
     SELECT DISTINCT Edad
-    FROM [dump_dw_project].[dbo].[EstadisticasPoliciales2024]
+    FROM [dump_dw_project].[dbo].[Estadisticas Policiales 2024]
     WHERE Edad IS NOT NULL
       AND Edad NOT IN (SELECT edad FROM [dw_project_normalized].[dbo].[dimension_edad]);
-END;
-EXEC Populate_Dimension_Edad;
+END
+GO
+
+EXEC Populate_Dimension_Edad
+GO
+
+select * from dw_project_normalized.dbo.dimension_edad
+GO
 
 CREATE PROCEDURE Populate_Dimension_Condicion_Pobreza
 AS
@@ -131,8 +203,16 @@ BEGIN
     FROM [dump_dw_project].[dbo].[Beneficios-S-x-SE_2023]
     WHERE Estado_Pobreza IS NOT NULL
       AND Estado_Pobreza NOT IN (SELECT condicion_pobreza FROM [dw_project_normalized].[dbo].[dimension_condicion_pobreza]);
-END;
-EXEC Populate_Dimension_Condicion_Pobreza;
+END
+GO
+
+EXEC Populate_Dimension_Condicion_Pobreza
+GO
+
+select * from dw_project_normalized.dbo.dimension_condicion_pobreza
+GO
+
+
 
 CREATE PROCEDURE Populate_Dimension_Educacion
 AS
@@ -144,8 +224,14 @@ BEGIN
     FROM [dump_dw_project].[dbo].[Beneficios-sociales-x-Educacion_2023]
     WHERE Nivel_Educativo IS NOT NULL
       AND Nivel_Educativo NOT IN (SELECT educacion FROM [dw_project_normalized].[dbo].[dimension_educacion]);
-END;
-EXEC Populate_Dimension_Educacion;
+END
+GO
+
+EXEC Populate_Dimension_Educacion
+GO
+
+select * from dw_project_normalized.dbo.dimension_educacion
+GO
 
 CREATE PROCEDURE Populate_Dimension_Sexo
 AS
@@ -157,16 +243,29 @@ BEGIN
     FROM [dump_dw_project].[dbo].[Beneficio-social-x-sexo_2023]
     WHERE Sexo IS NOT NULL
       AND Sexo NOT IN (SELECT sexo FROM [dw_project_normalized].[dbo].[dimension_sexo]);
-END;
-EXEC Populate_Dimension_Sexo;
+END
+GO
 
-use dw_project_normalized;
+EXEC Populate_Dimension_Sexo
+GO
+
+select * from dw_project_normalized.dbo.dimension_sexo
+GO
+
+use master
 go
+
+use dw_project_normalized
+go
+
 
 CREATE TABLE dimension_Beneficio (
     id_Beneficio INT IDENTITY(1,1) PRIMARY KEY,
     Beneficio VARCHAR(255) UNIQUE
 );
+GO
+drop PROCEDURE Populate_Dimension_Beneficio
+GO
 
 CREATE PROCEDURE Populate_Dimension_Beneficio
 AS
@@ -178,8 +277,19 @@ BEGIN
     FROM [dump_dw_project].[dbo].[Beneficio-social-x-sexo_2023]
     WHERE sbn203_nombre IS NOT NULL
       AND sbn203_nombre NOT IN (SELECT Beneficio FROM [dw_project_normalized].[dbo].[dimension_Beneficio]);
-END;
-EXEC Populate_Dimension_Beneficio;
+END
+GO
+
+EXEC Populate_Dimension_Beneficio
+GO
+
+select * from dw_project_normalized.dbo.dimension_Beneficio
+GO
+
+UPDATE [dump_dw_project].[dbo].[Beneficio-social-x-sexo_2023]
+SET sbn203_nombre = 'Desconocido'
+WHERE sbn203_nombre IS NULL
+GO
 
 CREATE PROCEDURE InsertarHechoBeneficiosSexo
 AS
@@ -220,8 +330,21 @@ BEGIN
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
         ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton
     WHERE src.IsGrandTotalRowTotal = 0;
-END;
-EXEC InsertarHechoBeneficiosSexo;
+END
+GO
+
+---- correcci贸n 
+
+
+DROP PROCEDURE InsertarHechoBeneficiosSexo
+GO
+--- fin correcci贸n
+
+EXEC InsertarHechoBeneficiosSexo
+GO
+select * from dw_project_normalized.dbo.hecho_beneficios_sexo
+GO
+
 
 CREATE PROCEDURE InsertarHechoDecilesIngreso
 AS
@@ -255,8 +378,15 @@ BEGIN
         ON src.Canton = c.nombre_canton AND c.id_provincia = p.id_provincia
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
         ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton;
-END;
-EXEC InsertarHechoDecilesIngreso;
+END
+GO
+
+EXEC InsertarHechoDecilesIngreso
+GO
+
+select * from dw_project_normalized.dbo.hecho_deciles_ingreso
+GO
+
 
 CREATE PROCEDURE InsertarHechoEducacionEdad
 AS
@@ -295,8 +425,14 @@ BEGIN
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
         ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton
     WHERE src.IsGrandTotalRowTotal = 0;
-END;
-EXEC InsertarHechoEducacionEdad;
+END
+GO
+
+EXEC InsertarHechoEducacionEdad
+GO
+
+select * from dw_project_normalized.dbo.hecho_educacion_edad
+GO
 
 CREATE PROCEDURE InsertarHechoEducacionSexo
 AS
@@ -335,9 +471,22 @@ BEGIN
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
         ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton
     WHERE src.IsGrandTotalRowTotal = 0;
-END;
-EXEC InsertarHechoEducacionSexo;
+END
+GO
 
+EXEC InsertarHechoEducacionSexo
+GO
+
+select * from dw_project_normalized.dbo.hecho_educacion_sexo
+GO
+
+INSERT INTO [dw_project_normalized].[dbo].[dimension_condicion_actividad] (condicion_actividad)
+SELECT DISTINCT Condici贸n_de_Actividad
+FROM [dump_dw_project].[dbo].[Beneficios-sociales-x-empleo_2023]
+WHERE Condici贸n_de_Actividad IS NOT NULL
+GO
+
+--- revisar
 CREATE PROCEDURE InsertarHechoEmpleoEdad
 AS
 BEGIN
@@ -355,7 +504,7 @@ BEGIN
         fecha_actualizacion
     )
     SELECT 
-        ca.id_condicion_actividad,
+        ca.condicion_actividad,
         ed.id_edad,
         p.id_provincia,
         c.id_canton,
@@ -365,7 +514,7 @@ BEGIN
         GETDATE()
     FROM [dump_dw_project].[dbo].[Beneficios-sociales-x-empleo_2023] src
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_condicion_actividad] ca 
-        ON src.Condici髇_de_Actividad = ca.condicion_actividad
+        ON src.Condici贸n_de_Actividad = ca.condicion_actividad
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_edad] ed 
         ON src.sbn203_nombre = ed.edad  -- Asegurar que sbn203_nombre representa la edad
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_provincia] p 
@@ -375,8 +524,14 @@ BEGIN
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
         ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton
     WHERE src.IsGrandTotalRowTotal = 0;
-END;
-Exec InsertarHechoEmpleoEdad;
+END
+GO
+
+DROP PROCEDURE InsertarHechoEmpleoEdad
+GO
+
+Exec InsertarHechoEmpleoEdad
+GO
 
 CREATE PROCEDURE InsertarHechoEmpleoSexo
 AS
@@ -412,8 +567,14 @@ BEGIN
         ON src.Canton = c.nombre_canton AND c.id_provincia = p.id_provincia
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
         ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton;
-END;
-Exec InsertarHechoEmpleoSexo;
+END
+GO
+
+Exec InsertarHechoEmpleoSexo
+GO
+
+select * from dw_project_normalized.dbo.hecho_empleo_sexo
+GO
 
 CREATE PROCEDURE InsertarEstadisticasPoliciales
 AS
@@ -441,22 +602,209 @@ BEGIN
         src.Fecha,
         src.Hora,
         src.Victima,
-        src.SubV韈tima,
+        src.SubV铆ctima,
         src.Edad,
         src.Sexo,  -- Asumiendo que "Sexo" corresponde a "genero"
         src.Nacionalidad,
         p.id_provincia,
         c.id_canton,
         d.id_distrito
-    FROM [dump_dw_project].[dbo].[EstadisticasPoliciales2024] src
+    FROM [dump_dw_project].[dbo].[Estadisticas Policiales 2024] src
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_provincia] p 
         ON src.Provincia = p.nombre_provincia
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_canton] c 
-        ON src.Cant髇 = c.nombre_canton AND c.id_provincia = p.id_provincia
+        ON src.Cant贸n = c.nombre_canton AND c.id_provincia = p.id_provincia
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
         ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton;
-END;
-Exec InsertarEstadisticasPoliciales;
+END
+GO
+
+Exec InsertarEstadisticasPoliciales
+GO
+select * from dw_project_normalized.dbo.hecho_estadisticas_policiales
+GO
+--- faltaron para el resto de estad铆sticas policiales
+CREATE PROCEDURE InsertarEstadisticasPoliciales2023
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO [dw_project_normalized].[dbo].[hecho_estadisticas_policiales]
+    (
+        delito,
+        subdelito,
+        fecha,
+        hora,
+        victima,
+        subvictima,
+        edad,
+        genero,
+        nacionalidad,
+        id_provincia,
+        id_canton,
+        id_distrito
+    )
+    SELECT 
+        src.Delito,
+        src.SubDelito,
+        TRY_CONVERT(DATE, src.Fecha, 103),
+        src.Hora,
+        src.Victima,
+        src.SubVictima,
+        src.Edad,
+        src.Genero,  -- Asumiendo que "Sexo" corresponde a "genero"
+        src.Nacionalidad,
+        p.id_provincia,
+        c.id_canton,
+        d.id_distrito
+    FROM [dump_dw_project].[dbo].[Estad铆sticas Policiales 2023] src
+    LEFT JOIN [dw_project_normalized].[dbo].[dimension_provincia] p 
+        ON src.Provincia = p.nombre_provincia
+    LEFT JOIN [dw_project_normalized].[dbo].[dimension_canton] c 
+        ON src.Canton = c.nombre_canton AND c.id_provincia = p.id_provincia
+    LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
+        ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton;
+END
+GO
+
+CREATE PROCEDURE InsertarEstadisticasPoliciales2022
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO [dw_project_normalized].[dbo].[hecho_estadisticas_policiales]
+    (
+        delito,
+        subdelito,
+        fecha,
+        hora,
+        victima,
+        subvictima,
+        edad,
+        genero,
+        nacionalidad,
+        id_provincia,
+        id_canton,
+        id_distrito
+    )
+    SELECT 
+        src.Delito,
+        src.SubDelito,
+        TRY_CONVERT(DATE, src.Fecha, 103),
+        src.Hora,
+        src.Victima,
+        src.SubVictima,
+        src.Edad,
+        src.Genero,  -- Asumiendo que "Sexo" corresponde a "genero"
+        src.Nacionalidad,
+        p.id_provincia,
+        c.id_canton,
+        d.id_distrito
+    FROM [dump_dw_project].[dbo].[Estad铆sticas Policiales 2022] src
+    LEFT JOIN [dw_project_normalized].[dbo].[dimension_provincia] p 
+        ON src.Provincia = p.nombre_provincia
+    LEFT JOIN [dw_project_normalized].[dbo].[dimension_canton] c 
+        ON src.Canton = c.nombre_canton AND c.id_provincia = p.id_provincia
+    LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
+        ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton;
+END
+GO
+
+CREATE PROCEDURE InsertarEstadisticasPoliciales2021
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO [dw_project_normalized].[dbo].[hecho_estadisticas_policiales]
+    (
+        delito,
+        subdelito,
+        fecha,
+        hora,
+        victima,
+        subvictima,
+        edad,
+        genero,
+        nacionalidad,
+        id_provincia,
+        id_canton,
+        id_distrito
+    )
+    SELECT 
+        src.Delito,
+        src.SubDelito,
+        TRY_CONVERT(DATE, src.Fecha, 103),
+        src.Hora,
+        src.Victima,
+        src.SubVictima,
+        src.Edad,
+        src.Genero,  -- Asumiendo que "Sexo" corresponde a "genero"
+        src.Nacionalidad,
+        p.id_provincia,
+        c.id_canton,
+        d.id_distrito
+    FROM [dump_dw_project].[dbo].[Estad铆sticas Policiales 2021] src
+    LEFT JOIN [dw_project_normalized].[dbo].[dimension_provincia] p 
+        ON src.Provincia = p.nombre_provincia
+    LEFT JOIN [dw_project_normalized].[dbo].[dimension_canton] c 
+        ON src.Canton = c.nombre_canton AND c.id_provincia = p.id_provincia
+    LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
+        ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton;
+END
+GO
+
+CREATE PROCEDURE InsertarEstadisticasPoliciales2020
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO [dw_project_normalized].[dbo].[hecho_estadisticas_policiales]
+    (
+        delito,
+        subdelito,
+        fecha,
+        hora,
+        victima,
+        subvictima,
+        edad,
+        genero,
+        nacionalidad,
+        id_provincia,
+        id_canton,
+        id_distrito
+    )
+    SELECT 
+        src.Delito,
+        src.SubDelito,
+        TRY_CONVERT(DATE, src.Fecha, 103),
+        src.Hora,
+        src.Victima,
+        src.SubVictima,
+        src.Edad,
+        src.Genero,  -- Asumiendo que "Sexo" corresponde a "genero"
+        src.Nacionalidad,
+        p.id_provincia,
+        c.id_canton,
+        d.id_distrito
+    FROM [dump_dw_project].[dbo].[Estad铆sticas Policiales 2020] src
+    LEFT JOIN [dw_project_normalized].[dbo].[dimension_provincia] p 
+        ON src.Provincia = p.nombre_provincia
+    LEFT JOIN [dw_project_normalized].[dbo].[dimension_canton] c 
+        ON src.Canton = c.nombre_canton AND c.id_provincia = p.id_provincia
+    LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
+        ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton;
+END
+GO
+
+Exec InsertarEstadisticasPoliciales2023
+GO
+Exec InsertarEstadisticasPoliciales2022
+GO
+Exec InsertarEstadisticasPoliciales2021
+GO
+Exec InsertarEstadisticasPoliciales2020
+GO
+---
 
 CREATE PROCEDURE InsertarSituacionSocioeconomicaEdad
 AS
@@ -466,7 +814,7 @@ BEGIN
     INSERT INTO [dw_project_normalized].[dbo].[hecho_situacion_socioeconomica_edad]
     (
         id_condicion_pobreza,
-        id_edad,  -- Este valor podr韆 ser NULL o un valor predeterminado
+        id_edad,  -- Este valor podr锟絘 ser NULL o un valor predeterminado
         id_provincia,
         id_canton,
         id_distrito,
@@ -476,7 +824,7 @@ BEGIN
     )
     SELECT 
         cp.id_condicion, -- Relacionando el campo de condicion pobreza
-        NULL AS id_edad, -- Este valor podr韆 ser NULL o relacionado si es necesario
+        NULL AS id_edad, -- Este valor podr锟絘 ser NULL o relacionado si es necesario
         p.id_provincia,
         c.id_canton,
         d.id_distrito,
@@ -492,8 +840,11 @@ BEGIN
         ON src.Canton = c.nombre_canton AND c.id_provincia = p.id_provincia
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
         ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton;
-END;
-Exec InsertarSituacionSocioeconomicaEdad;
+END
+GO
+
+Exec InsertarSituacionSocioeconomicaEdad
+GO
 
 CREATE PROCEDURE InsertarSituacionSocioeconomicaSexo
 AS
@@ -527,7 +878,10 @@ BEGIN
         ON src.Canton = c.nombre_canton AND c.id_provincia = p.id_provincia
     LEFT JOIN [dw_project_normalized].[dbo].[dimension_distrito] d 
         ON src.Distrito = d.nombre_distrito AND d.id_canton = c.id_canton;
-END;
-Exec InsertarSituacionSocioeconomicaSexo;
+END
+GO
+
+Exec InsertarSituacionSocioeconomicaSexo
+GO
 
 COMMIT TRANSACTION;

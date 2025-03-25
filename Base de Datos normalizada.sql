@@ -5,7 +5,7 @@ GO
 USE dw_project_normalized;
 GO
 
--- Dimensiones para Ubicación (Provincia, Cantón, Distrito)
+-- Dimensiones para Ubicaciï¿½n (Provincia, Cantï¿½n, Distrito)
 CREATE TABLE dimension_provincia (
     id_provincia INT IDENTITY(1,1) PRIMARY KEY,
     nombre_provincia VARCHAR(255) UNIQUE
@@ -25,7 +25,7 @@ CREATE TABLE dimension_distrito (
     FOREIGN KEY (id_canton) REFERENCES dimension_canton(id_canton)
 );
 
--- Dimensiones para Condición Socioeconómica, Sexo, Edad, y Educación
+-- Dimensiones para Condiciï¿½n Socioeconï¿½mica, Sexo, Edad, y Educaciï¿½n
 CREATE TABLE dimension_condicion_pobreza (
     id_condicion INT IDENTITY(1,1) PRIMARY KEY,
     condicion_pobreza VARCHAR(255) UNIQUE
@@ -36,17 +36,30 @@ CREATE TABLE dimension_sexo (
     sexo VARCHAR(50) UNIQUE
 );
 
+--- cambio de tipo de columna para edad ya que se usan rangos
 CREATE TABLE dimension_edad (
     id_edad INT IDENTITY(1,1) PRIMARY KEY,
-    edad INT UNIQUE
+    edad NVARCHAR(255) UNIQUE
 );
+
 
 CREATE TABLE dimension_educacion (
     id_educacion INT IDENTITY(1,1) PRIMARY KEY,
     educacion VARCHAR(255) UNIQUE
 );
 
--- Hechos: Situación Socioeconómica por Edad
+CREATE TABLE dimension_condicion_actividad (
+    id_condicion_actividad INT IDENTITY(1,1) PRIMARY KEY,
+    condicion_actividad VARCHAR(255) UNIQUE
+);
+
+CREATE TABLE dimension_Beneficio (
+    id_Beneficio INT IDENTITY(1,1) PRIMARY KEY,
+    Beneficio VARCHAR(255) UNIQUE
+);
+
+
+-- Hechos: Situaciï¿½n Socioeconï¿½mica por Edad
 CREATE TABLE hecho_situacion_socioeconomica_edad (
     id INT IDENTITY(1,1) PRIMARY KEY,
     id_condicion_pobreza INT,
@@ -64,7 +77,7 @@ CREATE TABLE hecho_situacion_socioeconomica_edad (
     FOREIGN KEY (id_distrito) REFERENCES dimension_distrito(id_distrito)
 );
 
--- Hechos: Situación Socioeconómica por Sexo
+-- Hechos: Situaciï¿½n Socioeconï¿½mica por Sexo
 CREATE TABLE hecho_situacion_socioeconomica_sexo (
     id INT IDENTITY(1,1) PRIMARY KEY,
     id_condicion_pobreza INT,
@@ -107,7 +120,7 @@ CREATE TABLE hecho_empleo_sexo (
     numero_personas INT,
     fecha_consulta DATE,
     fecha_actualizacion DATE,
-    FOREIGN KEY (id_condicion_actividad) REFERENCES dimension_condicion_pobreza(id_condicion), -- Se ajusta según tu fuente de datos
+    FOREIGN KEY (id_condicion_actividad) REFERENCES dimension_condicion_pobreza(id_condicion), -- Se ajusta segï¿½n tu fuente de datos
     FOREIGN KEY (id_sexo) REFERENCES dimension_sexo(id_sexo),
     FOREIGN KEY (id_provincia) REFERENCES dimension_provincia(id_provincia),
     FOREIGN KEY (id_canton) REFERENCES dimension_canton(id_canton),
@@ -125,14 +138,14 @@ CREATE TABLE hecho_empleo_edad (
     numero_personas INT,
     fecha_consulta DATE,
     fecha_actualizacion DATE,
-    FOREIGN KEY (id_condicion_actividad) REFERENCES dimension_condicion_pobreza(id_condicion), -- Se ajusta según tu fuente de datos
+    FOREIGN KEY (id_condicion_actividad) REFERENCES dimension_condicion_pobreza(id_condicion), -- Se ajusta segï¿½n tu fuente de datos
     FOREIGN KEY (id_edad) REFERENCES dimension_edad(id_edad),
     FOREIGN KEY (id_provincia) REFERENCES dimension_provincia(id_provincia),
     FOREIGN KEY (id_canton) REFERENCES dimension_canton(id_canton),
     FOREIGN KEY (id_distrito) REFERENCES dimension_distrito(id_distrito)
 );
 
--- Hechos: Educación por Sexo
+-- Hechos: Educaciï¿½n por Sexo
 CREATE TABLE hecho_educacion_sexo (
     id INT IDENTITY(1,1) PRIMARY KEY,
     id_educacion INT,
@@ -150,7 +163,7 @@ CREATE TABLE hecho_educacion_sexo (
     FOREIGN KEY (id_distrito) REFERENCES dimension_distrito(id_distrito)
 );
 
--- Hechos: Educación por Edad
+-- Hechos: Educaciï¿½n por Edad
 CREATE TABLE hecho_educacion_edad (
     id INT IDENTITY(1,1) PRIMARY KEY,
     id_educacion INT,
@@ -180,14 +193,14 @@ CREATE TABLE hecho_beneficios_sexo (
     monto INT,
     fecha_consulta DATE,
     fecha_actualizacion DATE,
-    FOREIGN KEY (id_beneficio) REFERENCES dimension_condicion_pobreza(id_condicion), -- Se ajusta según tu fuente de datos
+    FOREIGN KEY (id_beneficio) REFERENCES dimension_condicion_pobreza(id_condicion), -- Se ajusta segï¿½n tu fuente de datos
     FOREIGN KEY (id_sexo) REFERENCES dimension_sexo(id_sexo),
     FOREIGN KEY (id_provincia) REFERENCES dimension_provincia(id_provincia),
     FOREIGN KEY (id_canton) REFERENCES dimension_canton(id_canton),
     FOREIGN KEY (id_distrito) REFERENCES dimension_distrito(id_distrito)
 );
 
--- Hechos: Estadísticas Policiales
+-- Hechos: Estadï¿½sticas Policiales
 CREATE TABLE hecho_estadisticas_policiales (
     id INT IDENTITY(1,1) PRIMARY KEY,
     delito VARCHAR(255),

@@ -1,10 +1,10 @@
 USE MASTER
 GO
 
-CREATE DATABASE dw_datamart;
+CREATE DATABASE dw_datamart
 GO
 
-USE dw_datamart;
+USE dw_datamart
 GO
 
 
@@ -31,7 +31,7 @@ CREATE TABLE dim_sexo (
 
 CREATE TABLE dim_edad (
     edad_id INT PRIMARY KEY IDENTITY(1,1),
-    edad INT
+    edad NVARCHAR(50)
 );
 
 CREATE TABLE dim_delito (
